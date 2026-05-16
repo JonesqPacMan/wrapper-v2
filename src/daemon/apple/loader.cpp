@@ -25,13 +25,11 @@ void* open_lib(const std::string& path, std::string* err_out) {
     return h;
 }
 
-// Helper: dlsym with friendlier error reporting.
+// Helper: dlsym with friendlier error reporting. Handle may be a real
+// dlopen result OR RTLD_DEFAULT (which on bionic/x86_64 is the literal
+// value 0 - so a null-check on the handle here would be wrong).
 template <typename T>
 bool resolve(void* h, const char* name, T* out, std::string* err_out) {
-    if (h == nullptr) {
-        if (err_out) *err_out = std::string("resolve(") + name + "): null handle";
-        return false;
-    }
     dlerror();  // clear
     void* sym = dlsym(h, name);
     const char* msg = dlerror();
@@ -72,24 +70,22 @@ bool Loader::open(const std::string& libs_dir) {
     if (!load(libs_dir + "/libstoreservicescore.so", &h_libstoreservicescore_)) return false;
     if (!load(libs_dir + "/libandroidappmusic.so",   &h_libandroidappmusic_))   return false;
 
-    // All of Apple's exports live in libstoreservicescore.so (resolver
-    // resolves transitively through RTLD_GLOBAL, so we don't need to
-    // pick the *right* handle per symbol). The bionic resolver symbol
-    // lives in libc.so which the linker has already loaded.
-    void* h = h_libstoreservicescore_;
-
+    // Apple's symbols are distributed across libstoreservicescore.so,
+    // libmediaplatform.so, and libandroidappmusic.so. Rather than
+    // hand-mapping each symbol to a handle, we resolve via RTLD_DEFAULT
+    // which searches every RTLD_GLOBAL-loaded lib plus the executable.
+    // The bionic resolver (_resolv_*) lives in libc.so and is reachable
+    // the same way.
     using namespace abi;
 
-    // Bionic resolver - lives in libc.so. We dlopen with RTLD_DEFAULT
-    // (nullptr handle) to find it in the default search scope.
     if (!resolve(RTLD_DEFAULT,
                  mangled::resolv_set_nameservers_for_net,
                  &symbols_.resolv_set_nameservers_for_net, &last_error_)) return false;
 
-    // Vtable symbol (data object, not a function).
+    // Vtable symbol (data object, not a function pointer).
     {
         dlerror();
-        void* v = dlsym(h, mangled::vtable_RequestContextConfig);
+        void* v = dlsym(RTLD_DEFAULT, mangled::vtable_RequestContextConfig);
         const char* msg = dlerror();
         if (v == nullptr || msg != nullptr) {
             last_error_ = std::string("dlsym(") + mangled::vtable_RequestContextConfig
@@ -101,7 +97,7 @@ bool Loader::open(const std::string& libs_dir) {
     }
 
 #define RESOLVE(field, name) \
-    if (!resolve(h, mangled::name, &symbols_.field, &last_error_)) return false
+    if (!resolve(RTLD_DEFAULT, mangled::name, &symbols_.field, &last_error_)) return false
 
     RESOLVE(FootHillConfig_config,          FootHillConfig_config);
     RESOLVE(DeviceGUID_instance,            DeviceGUID_instance);
