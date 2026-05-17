@@ -305,6 +305,77 @@ using fn_URLRequest_response = shared_ptr* (*)(void* this_);
 // HTTPMessage shared_ptr whose body bytes we read out at offset +48.
 using fn_URLResponse_underlyingResponse = shared_ptr* (*)(void* this_);
 
+// ---------------------------------------------------------------------------
+// Phase 1.2 - PurchaseRequest + URLResponse::protocolDictionary
+// (GET /playback "raw playback dispatch plist" path).
+// ---------------------------------------------------------------------------
+//
+// PurchaseRequest is the high-level storeservicescore object that wraps
+// the iTunes store "buyProduct" / "subDownload" URL bag dispatch. We
+// drive it the same way upstream wrapper main.c does:
+//   1. ctor on a sufficiently-sized buffer (PurchaseRequest is heavy;
+//      we use a 4 KiB stack buffer, mirroring URLRequest).
+//   2. setProcessDialogActions(true)
+//   3. setURLBagKey("subDownload")
+//   4. setBuyParameters("salableAdamId=...&pricingParameters=SUBS&...")
+//   5. run() (blocking; uses our presentation interface for any UI).
+//
+// To capture the *raw* response plist instead of just the parsed
+// `PurchaseResponse` accessors, we install a URLResponsePreprocessor
+// hook on URLRequest (PurchaseRequest's base class). Apple invokes it
+// synchronously inside run() with the parsed URLResponse shared_ptr;
+// we call URLResponse::protocolDictionary() which returns a borrowed
+// CFDictionaryRef of the entire MZ-protocol envelope (cancel-batch
+// flags, songList, assets, key URIs, ...). We CFRetain it, then after
+// run() returns we re-serialize via CFPropertyListCreateData to XML.
+
+// PurchaseRequest::PurchaseRequest(shared_ptr<RequestContext> const&)
+using fn_PurchaseRequest_ctor =
+    void (*)(void* this_, shared_ptr* req_ctx);
+
+// PurchaseRequest::setProcessDialogActions(bool)
+using fn_PurchaseRequest_setProcessDialogActions =
+    void (*)(void* this_, std::uint8_t flag);
+
+// PurchaseRequest::setURLBagKey / setBuyParameters - both take std::string const&.
+using fn_PurchaseRequest_set_string =
+    void (*)(void* this_, std_string* s);
+
+// PurchaseRequest::run()  (blocking)
+using fn_PurchaseRequest_run = void (*)(void* this_);
+
+// PurchaseRequest::response() const -> shared_ptr<PurchaseResponse>*
+// (returns a pointer to an internal member; same shape as URLRequest::response)
+using fn_PurchaseRequest_response = shared_ptr* (*)(void* this_);
+
+// PurchaseResponse::error() -> shared_ptr<StoreErrorCondition>*
+// (non-const in Apple's lib despite being a getter; see nm output)
+using fn_PurchaseResponse_error = shared_ptr* (*)(void* this_);
+
+// PurchaseResponse::items() const -> std::vector<shared_ptr<PurchaseItem>>
+// Vector is 24 bytes (3 pointers), so SysV ABI returns it via a hidden
+// first arg (the local std_vector the caller wants to fill).
+using fn_PurchaseResponse_items =
+    void (*)(std_vector* out, void* this_);
+
+// PurchaseItem::dictionary() const — in the pinned lib the body returns `this`
+// (not CFDictionaryRef); the plist lives at object offset 0. Caller should use
+// purchase_item_cfdictionary() in playback.cpp. Kept for dlsym + builds where
+// dictionary() returns the dict pointer directly.
+using fn_PurchaseItem_dictionary = void* (*)(void* this_);
+
+// URLRequest::setURLResponsePreprocessor(
+//     std::function<void(std::shared_ptr<URLResponse> const&)> const&)
+// We pass a pointer to a libc++ std::function we built; Apple copies it
+// into the request and invokes it during run().
+using fn_URLRequest_setURLResponsePreprocessor =
+    void (*)(void* this_, const void* fn);
+
+// URLResponse::protocolDictionary() -> CFDictionaryRef (borrowed, NOT
+// retained by us; CFRetain it inside the preprocessor before run()
+// returns or it may be freed when Apple drops the URLResponse).
+using fn_URLResponse_protocolDictionary = void* (*)(void* this_);
+
 // RequestContext::storeFrontIdentifier(shared_ptr<URLBag> const&) const
 // - writes a std::string to the hidden first arg; the URLBag arg is
 // passed as a null shared_ptr (upstream pattern).
@@ -511,6 +582,32 @@ inline constexpr const char* URLRequest_response =
     "_ZNK17storeservicescore10URLRequest8responseEv";
 inline constexpr const char* URLResponse_underlyingResponse =
     "_ZNK17storeservicescore11URLResponse18underlyingResponseEv";
+
+// ---- Phase 1.2: PurchaseRequest + URLResponse::protocolDictionary ----
+
+inline constexpr const char* PurchaseRequest_ctor =
+    "_ZN17storeservicescore15PurchaseRequestC2ERKNSt6__ndk110shared_ptrINS_14RequestContextEEE";
+inline constexpr const char* PurchaseRequest_setProcessDialogActions =
+    "_ZN17storeservicescore15PurchaseRequest23setProcessDialogActionsEb";
+inline constexpr const char* PurchaseRequest_setURLBagKey =
+    "_ZN17storeservicescore15PurchaseRequest12setURLBagKeyERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE";
+inline constexpr const char* PurchaseRequest_setBuyParameters =
+    "_ZN17storeservicescore15PurchaseRequest16setBuyParametersERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE";
+inline constexpr const char* PurchaseRequest_run =
+    "_ZN17storeservicescore15PurchaseRequest3runEv";
+inline constexpr const char* PurchaseRequest_response =
+    "_ZNK17storeservicescore15PurchaseRequest8responseEv";
+inline constexpr const char* PurchaseResponse_error =
+    "_ZN17storeservicescore16PurchaseResponse5errorEv";
+inline constexpr const char* PurchaseResponse_items =
+    "_ZNK17storeservicescore16PurchaseResponse5itemsEv";
+inline constexpr const char* PurchaseItem_dictionary =
+    "_ZNK17storeservicescore12PurchaseItem10dictionaryEv";
+
+inline constexpr const char* URLRequest_setURLResponsePreprocessor =
+    "_ZN17storeservicescore10URLRequest26setURLResponsePreprocessorERKNSt6__ndk18functionIFvRKNS1_10shared_ptrINS_11URLResponseEEEEEE";
+inline constexpr const char* URLResponse_protocolDictionary =
+    "_ZN17storeservicescore11URLResponse18protocolDictionaryEv";
 
 inline constexpr const char* RequestContext_storeFrontIdentifier =
     "_ZNK17storeservicescore14RequestContext20storeFrontIdentifierERKNSt6__ndk110shared_ptrINS_6URLBagEEE";

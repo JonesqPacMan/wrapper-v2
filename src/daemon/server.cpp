@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 
 #include "apple/decrypt.hpp"
+#include "apple/playback.hpp"
 
 namespace wrapper {
 
@@ -341,6 +342,72 @@ void Server::mount() {
 
         auto state = account_.wait_for_settled_state(kLogin2faTimeout);
         respond_json(res, http_status_for(state), snapshot_to_json(account_.public_snapshot()));
+    });
+
+    // ---- GET /playback ----
+    // Returns Apple's full MZ-protocol playback dispatch as native JSON
+    // (the CFDictionary plist tree walked into nlohmann::json: dict ->
+    // object, array -> array, string/number/bool -> matching JSON types,
+    // CFData -> base64 string, CFDate -> ISO 8601). Driven by
+    // storeservicescore::PurchaseRequest with urlBagKey="subDownload"
+    // (matching upstream wrapper's get_m3u8_method_download). Unlike
+    // upstream which extracts just the last asset's URL, we hand back
+    // every flavor / key URI / metadata field Apple included.
+    svr_.Get("/playback", [this](const httplib::Request& req, httplib::Response& res) {
+        access_log("GET", req);
+        if (!rt_.initialized()) {
+            respond_json(res, 503, json{
+                {"error", "runtime_not_initialized"},
+                {"detail", "Apple lib init has not completed; check /health"},
+            });
+            return;
+        }
+        if (account_.state() != apple::LoginState::Authenticated) {
+            respond_json(res, 401, json{
+                {"error", "not_authenticated"},
+                {"detail", "POST /login or restore a session first"},
+            });
+            return;
+        }
+
+        std::string adam_id;
+        if (req.has_param("adam_id")) {
+            adam_id = req.get_param_value("adam_id");
+        } else if (req.has_param("adamId")) {
+            adam_id = req.get_param_value("adamId");
+        } else {
+            respond_json(res, 400, json{
+                {"error", "missing_field"},
+                {"detail", "expected query string '?adam_id=<numeric store id>'"},
+            });
+            return;
+        }
+        if (adam_id.empty()) {
+            respond_json(res, 400, json{
+                {"error", "empty_field"},
+                {"detail", "adam_id must be non-empty"},
+            });
+            return;
+        }
+
+        apple::PlaybackResult pr;
+        {
+            // PurchaseRequest drives Apple's URLBag dispatcher; same global
+            // state /decrypt touches, so share the playback mutex to avoid
+            // overlap with a concurrent decrypt request.
+            std::lock_guard<std::mutex> lock(rt_.playback_mutex());
+            pr = apple::fetch_playback_json(loader_, rt_, std::move(adam_id));
+        }
+
+        if (!pr.ok) {
+            respond_json(res, 502, json{
+                {"error", "playback_dispatch_failed"},
+                {"detail", pr.error},
+            });
+            return;
+        }
+
+        respond_json(res, 200, std::move(pr.body));
     });
 
     // ---- POST /decrypt ----

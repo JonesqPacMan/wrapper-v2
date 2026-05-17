@@ -203,9 +203,82 @@ bool Loader::open(const std::string& libs_dir) {
     RESOLVE(URLRequest_response,          URLRequest_response);
     RESOLVE(URLResponse_underlyingResponse, URLResponse_underlyingResponse);
 
+    // ---- Phase 1.2: PurchaseRequest + protocolDictionary ----
+    RESOLVE(PurchaseRequest_ctor,                    PurchaseRequest_ctor);
+    RESOLVE(PurchaseRequest_setProcessDialogActions, PurchaseRequest_setProcessDialogActions);
+    RESOLVE(PurchaseRequest_setURLBagKey,            PurchaseRequest_setURLBagKey);
+    RESOLVE(PurchaseRequest_setBuyParameters,        PurchaseRequest_setBuyParameters);
+    RESOLVE(PurchaseRequest_run,                     PurchaseRequest_run);
+    RESOLVE(PurchaseRequest_response,                PurchaseRequest_response);
+    RESOLVE(PurchaseResponse_error,                  PurchaseResponse_error);
+    RESOLVE(PurchaseResponse_items,                  PurchaseResponse_items);
+    RESOLVE(PurchaseItem_dictionary,                 PurchaseItem_dictionary);
+    RESOLVE(URLRequest_setURLResponsePreprocessor,   URLRequest_setURLResponsePreprocessor);
+    RESOLVE(URLResponse_protocolDictionary,          URLResponse_protocolDictionary);
+
     RESOLVE(RequestContext_storeFrontIdentifier, RequestContext_storeFrontIdentifier);
 
 #undef RESOLVE
+
+    // CoreFoundation symbols are plain C, name = symbol. They are loaded
+    // transitively (libCoreFoundation.so is a DT_NEEDED of libstoreservicescore.so);
+    // RTLD_DEFAULT picks them up.
+    if (!resolve(RTLD_DEFAULT, "CFRetain",
+                 &symbols_.CFRetain, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "CFRelease",
+                 &symbols_.CFRelease, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "CFDataGetBytePtr",
+                 &symbols_.CFDataGetBytePtr, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "CFDataGetLength",
+                 &symbols_.CFDataGetLength, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "CFPropertyListCreateData",
+                 &symbols_.CFPropertyListCreateData, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "CFStringCreateWithCString",
+                 &symbols_.CFStringCreateWithCString, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "CFArrayCreate",
+                 &symbols_.CFArrayCreate, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "CFDictionaryCreate",
+                 &symbols_.CFDictionaryCreate, &last_error_)) return false;
+    // CF callback structs are exported as data symbols; dlsym returns the
+    // address of the global. Store as `const void*` and pass-through.
+    if (!resolve(RTLD_DEFAULT, "kCFTypeArrayCallBacks",
+                 &symbols_.kCFTypeArrayCallBacks, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "kCFTypeDictionaryKeyCallBacks",
+                 &symbols_.kCFTypeDictionaryKeyCallBacks, &last_error_)) return false;
+    if (!resolve(RTLD_DEFAULT, "kCFTypeDictionaryValueCallBacks",
+                 &symbols_.kCFTypeDictionaryValueCallBacks, &last_error_)) return false;
+
+    // CF type-introspection symbols (powering the CF->JSON walker).
+#define RESOLVE_CF(name) \
+    if (!resolve(RTLD_DEFAULT, #name, &symbols_.name, &last_error_)) return false
+
+    RESOLVE_CF(CFGetTypeID);
+    RESOLVE_CF(CFStringGetTypeID);
+    RESOLVE_CF(CFNumberGetTypeID);
+    RESOLVE_CF(CFBooleanGetTypeID);
+    RESOLVE_CF(CFArrayGetTypeID);
+    RESOLVE_CF(CFDictionaryGetTypeID);
+    RESOLVE_CF(CFDataGetTypeID);
+    RESOLVE_CF(CFDateGetTypeID);
+    RESOLVE_CF(CFNullGetTypeID);
+
+    RESOLVE_CF(CFStringGetCStringPtr);
+    RESOLVE_CF(CFStringGetLength);
+    RESOLVE_CF(CFStringGetCString);
+    RESOLVE_CF(CFStringGetMaximumSizeForEncoding);
+
+    RESOLVE_CF(CFNumberGetType);
+    RESOLVE_CF(CFNumberGetValue);
+    RESOLVE_CF(CFNumberIsFloatType);
+
+    RESOLVE_CF(CFBooleanGetValue);
+    RESOLVE_CF(CFArrayGetCount);
+    RESOLVE_CF(CFArrayGetValueAtIndex);
+    RESOLVE_CF(CFDictionaryGetCount);
+    RESOLVE_CF(CFDictionaryGetKeysAndValues);
+    RESOLVE_CF(CFDateGetAbsoluteTime);
+
+#undef RESOLVE_CF
 
     clear_fairplay_symbols(&symbols_);
     std::string fp_err;

@@ -1,9 +1,10 @@
 # wrapper-v2
 
 A clean rewrite of the Apple Music FairPlay decryption wrapper. Currently in
-**Phase 1.3** — same as 1.1, plus **`POST /decrypt`** for FairPlay sample
-decryption over JSON (batch base64 in/out). The **`/m3u8`** asset-URL helper is
-still planned (Phase 1.2).
+**Phase 1.3** — same as 1.1, plus **`GET /playback`** which returns the
+**entire** MZ playback dispatch as native JSON (Phase 1.2, replaces the
+single-URL `/m3u8` helper upstream exposes), and **`POST /decrypt`** for
+FairPlay sample decryption over JSON (batch base64 in/out).
 
 ## What it is
 
@@ -12,35 +13,36 @@ Linux chroot, exposes a local HTTP API for FairPlay key fetching and sample
 decryption, and gives downstream tooling (e.g. [`gamdl`](https://github.com/glomatico/gamdl))
 a uniform interface that does not depend on platform or language.
 
-The daemon ships *no* Apple code. At build time, libraries are extracted from
+The daemon ships _no_ Apple code. At build time, libraries are extracted from
 a pinned Apple Music for Android APK split (3.6.0-beta, build 1109) whose
 SHA-256 digests are committed in `LIBS_VERSION.json`. Without a matching APK
 the build fails loudly.
 
 ## Status
 
-| Phase | Goal | State |
-| --- | --- | --- |
-| 0 | Repo skeleton, build chain, NDK toolchain, CI smoke test | **Done** |
-| 1.0 | Apple lib runtime init, dlopen loader, vendored AOSP closure | **Done** |
-| 1.1 | `POST /login`, `POST /login/2fa`, token harvest, `/me`, startup session restore (warm `WRAPPER_BASE_DIR`) | **Done** |
-| 1.2 | `/m3u8` (asset URL fetch) | Pending |
-| 1.3 | `POST /decrypt` (FairPlay FPS sample decrypt, JSON base64 batch) | **Done** |
-| 2 | Rate limit, dedupe, request queue | Pending |
-| 3 | arm64-v8a build, multi-arch Docker | Pending |
+| Phase | Goal                                                                                                      | State    |
+| ----- | --------------------------------------------------------------------------------------------------------- | -------- |
+| 0     | Repo skeleton, build chain, NDK toolchain, CI smoke test                                                  | **Done** |
+| 1.0   | Apple lib runtime init, dlopen loader, vendored AOSP closure                                              | **Done** |
+| 1.1   | `POST /login`, `POST /login/2fa`, token harvest, `/me`, startup session restore (warm `WRAPPER_BASE_DIR`) | **Done** |
+| 1.2   | `GET /playback` (full MZ playback dispatch as native JSON)                                                | **Done** |
+| 1.3   | `POST /decrypt` (FairPlay FPS sample decrypt, JSON base64 batch)                                          | **Done** |
+| 2     | Rate limit, dedupe, request queue                                                                         | Pending  |
+| 3     | arm64-v8a build, multi-arch Docker                                                                        | Pending  |
 
 ## HTTP API
 
-Every endpoint accepts and returns `application/json`.
+All endpoints accept and return `application/json`.
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Liveness probe. `{status, phase, version, runtime}` — `runtime.playback_ready` is true when FairPlay decrypt is available. |
-| `GET` | `/me` | `{version, runtime, auth}` — same runtime flags as `/health`. |
-| `POST` | `/login` | Body: `{"username": "...", "password": "..."}` or `{"apple_id": "...", "password": "..."}` (synonyms). Drives Apple's `AuthenticateFlow`. Returns `200` + token snapshot, `202` if **2FA** is required (then `POST /login/2fa`), or `401` on failure. |
-| `POST` | `/login/2fa` | Body: `{"code": "123456"}`. Continues a login waiting for HSA2. |
-| `POST` | `/decrypt` | Body: `{"adam_id":"<store adam id>","uri":"<skd://...>","samples":["<base64>",...]}` or a single `"sample":"..."`. Returns `200` `{"samples":["<base64 plaintext>",...]}`. Needs **authenticated** session and `playback_ready`; otherwise `401` / `503`. Apple errors → `502`. |
-| `DELETE` | `/login` | Aborts an in-flight login or clears cached tokens from memory. Apple's on-disk `mpl_db` cache is unchanged. |
+| Method   | Path         | Description                                                                                                                                                                                                                                                                                                                                                                        |
+| -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`    | Liveness probe. `{status, phase, version, runtime}` — `runtime.playback_ready` is true when FairPlay decrypt is available.                                                                                                                                                                                                                                                         |
+| `GET`    | `/me`        | `{version, runtime, auth}` — same runtime flags as `/health`.                                                                                                                                                                                                                                                                                                                      |
+| `POST`   | `/login`     | Body: `{"username": "...", "password": "..."}` or `{"apple_id": "...", "password": "..."}` (synonyms). Drives Apple's `AuthenticateFlow`. Returns `200` + token snapshot, `202` if **2FA** is required (then `POST /login/2fa`), or `401` on failure.                                                                                                                              |
+| `POST`   | `/login/2fa` | Body: `{"code": "123456"}`. Continues a login waiting for HSA2.                                                                                                                                                                                                                                                                                                                    |
+| `GET`    | `/playback`  | Query string `?adam_id=<numeric store id>`. Returns `200` with a JSON object `{"songList":[...]}` containing the **whole MZ playback dispatch** Apple's `subDownload` URL bag returns (every flavor, key URI, asset URL, metadata field). CFData fields are base64; CFDate fields are ISO 8601. Needs an **authenticated** session; otherwise `401` / `503`. Apple errors → `502`. |
+| `POST`   | `/decrypt`   | Body: `{"adam_id":"<store adam id>","uri":"<skd://...>","samples":["<base64>",...]}` or a single `"sample":"..."`. Returns `200` `{"samples":["<base64 plaintext>",...]}`. Needs **authenticated** session and `playback_ready`; otherwise `401` / `503`. Apple errors → `502`.                                                                                                    |
+| `DELETE` | `/login`     | Aborts an in-flight login or clears cached tokens from memory. Apple's on-disk `mpl_db` cache is unchanged.                                                                                                                                                                                                                                                                        |
 
 Sign-in matches the legacy wrapper model: you send **email (Apple ID) and password**
 to the daemon; it fills credentials through the native presentation interface.
@@ -96,7 +98,7 @@ runs inside the image. There is no host toolchain prerequisite for the
 default workflow.
 
 For the build to succeed you must obtain Apple Music for Android **3.6.0-beta
-(1109)** as APK splits. The APK is *not* committed and *not* fetched
+(1109)** as APK splits. The APK is _not_ committed and _not_ fetched
 automatically by the Dockerfile.
 
 ### Local build

@@ -102,6 +102,84 @@ struct Symbols {
     abi::fn_URLRequest_response          URLRequest_response          = nullptr;
     abi::fn_URLResponse_underlyingResponse URLResponse_underlyingResponse = nullptr;
 
+    // ---- Phase 1.2: PurchaseRequest / protocolDictionary / CoreFoundation ----
+    abi::fn_PurchaseRequest_ctor                     PurchaseRequest_ctor                     = nullptr;
+    abi::fn_PurchaseRequest_setProcessDialogActions  PurchaseRequest_setProcessDialogActions  = nullptr;
+    abi::fn_PurchaseRequest_set_string               PurchaseRequest_setURLBagKey             = nullptr;
+    abi::fn_PurchaseRequest_set_string               PurchaseRequest_setBuyParameters         = nullptr;
+    abi::fn_PurchaseRequest_run                      PurchaseRequest_run                      = nullptr;
+    abi::fn_PurchaseRequest_response                 PurchaseRequest_response                 = nullptr;
+    abi::fn_PurchaseResponse_error                   PurchaseResponse_error                   = nullptr;
+    abi::fn_PurchaseResponse_items                   PurchaseResponse_items                   = nullptr;
+    abi::fn_PurchaseItem_dictionary                  PurchaseItem_dictionary                  = nullptr;
+    abi::fn_URLRequest_setURLResponsePreprocessor    URLRequest_setURLResponsePreprocessor    = nullptr;
+    abi::fn_URLResponse_protocolDictionary           URLResponse_protocolDictionary           = nullptr;
+
+    // CoreFoundation: we serialize a CFDictionary* (either the URLResponse's
+    // protocolDictionary, or a synthetic dict we build from PurchaseItem
+    // dictionaries when the preprocessor hook doesn't fire) back to XML
+    // plist bytes for the HTTP response. CFRelease drops the retained refs.
+    // These are plain C symbols, no mangling.
+    void* (*CFRetain)(const void* cf)                                         = nullptr;
+    void  (*CFRelease)(const void* cf)                                        = nullptr;
+    const unsigned char* (*CFDataGetBytePtr)(const void* data)                = nullptr;
+    long  (*CFDataGetLength)(const void* data)                                = nullptr;
+    // CFPropertyListCreateData(allocator, plist, format, options, error)
+    // format=100 is kCFPropertyListXMLFormat_v1_0.
+    void* (*CFPropertyListCreateData)(void* alloc, void* plist,
+                                      long format, unsigned long options,
+                                      void* error)                            = nullptr;
+    // Container builders for the synthetic root dict when /playback has
+    // to fall back from the preprocessor hook to PurchaseResponse::items().
+    void* (*CFStringCreateWithCString)(void* alloc, const char* cstr,
+                                       unsigned long encoding)                = nullptr;
+    void* (*CFArrayCreate)(void* alloc, const void* const* values,
+                           long numValues, const void* callbacks)             = nullptr;
+    void* (*CFDictionaryCreate)(void* alloc, const void* const* keys,
+                                const void* const* values, long numValues,
+                                const void* key_cb, const void* val_cb)       = nullptr;
+    const void* kCFTypeArrayCallBacks               = nullptr;
+    const void* kCFTypeDictionaryKeyCallBacks       = nullptr;
+    const void* kCFTypeDictionaryValueCallBacks     = nullptr;
+
+    // CF type introspection (used by the CF->JSON walker that powers
+    // GET /playback's body). On x86_64 CFTypeID is unsigned long.
+    unsigned long (*CFGetTypeID)(const void* cf)                              = nullptr;
+    unsigned long (*CFStringGetTypeID)()                                       = nullptr;
+    unsigned long (*CFNumberGetTypeID)()                                       = nullptr;
+    unsigned long (*CFBooleanGetTypeID)()                                      = nullptr;
+    unsigned long (*CFArrayGetTypeID)()                                        = nullptr;
+    unsigned long (*CFDictionaryGetTypeID)()                                   = nullptr;
+    unsigned long (*CFDataGetTypeID)()                                         = nullptr;
+    unsigned long (*CFDateGetTypeID)()                                         = nullptr;
+    unsigned long (*CFNullGetTypeID)()                                         = nullptr;
+
+    const char*   (*CFStringGetCStringPtr)(const void* str,
+                                           unsigned long encoding)             = nullptr;
+    long          (*CFStringGetLength)(const void* str)                       = nullptr;
+    unsigned char (*CFStringGetCString)(const void* str, char* buf,
+                                        long buf_size,
+                                        unsigned long encoding)                = nullptr;
+    long          (*CFStringGetMaximumSizeForEncoding)(long length,
+                                                       unsigned long enc)      = nullptr;
+
+    long          (*CFNumberGetType)(const void* num)                         = nullptr;
+    unsigned char (*CFNumberGetValue)(const void* num, long type,
+                                       void* out)                              = nullptr;
+    unsigned char (*CFNumberIsFloatType)(const void* num)                     = nullptr;
+
+    unsigned char (*CFBooleanGetValue)(const void* b)                         = nullptr;
+
+    long          (*CFArrayGetCount)(const void* arr)                         = nullptr;
+    const void*   (*CFArrayGetValueAtIndex)(const void* arr, long idx)        = nullptr;
+
+    long          (*CFDictionaryGetCount)(const void* d)                      = nullptr;
+    void          (*CFDictionaryGetKeysAndValues)(const void* d,
+                                                  const void** keys,
+                                                  const void** values)         = nullptr;
+
+    double        (*CFDateGetAbsoluteTime)(const void* date)                  = nullptr;
+
     abi::fn_RequestContext_storeFrontIdentifier RequestContext_storeFrontIdentifier = nullptr;
 
     // ---- Phase 1.3: FairPlay decrypt ----
