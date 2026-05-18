@@ -60,7 +60,7 @@ public:
     std::string base_dir() const;
     std::string device_info() const;
 
-    // Read-only access used by the auth worker thread (Phase 1.1+).
+    // Read-only access used by the auth worker thread.
     // Both methods return zero-initialized values if not initialized.
     abi::shared_ptr request_ctx_copy() const;
     abi::shared_ptr device_guid_copy() const;

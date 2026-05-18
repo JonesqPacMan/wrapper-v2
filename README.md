@@ -1,9 +1,8 @@
 # wrapper-v2
 
-A clean rewrite of the Apple Music FairPlay decryption wrapper. Currently in
-**Phase 1.3** — same as 1.1, plus **`GET /playback`** (Phase 1.2) and **`POST /decrypt/sample`**.
-**Phase 3** is done for **`arm64-v8a`** images (NDK cross-build + multi-arch Docker;
-see **Building** → arm64-v8a).
+A clean rewrite of the Apple Music FairPlay decryption wrapper.
+
+Current version: **0.0.1**.
 
 ## What it is
 
@@ -17,33 +16,21 @@ a pinned Apple Music for Android APK split (3.6.0-beta, build 1109) whose
 SHA-256 digests are committed in `LIBS_VERSION.json`. Without a matching APK
 the build fails loudly.
 
-## Status
-
-| Phase | Goal                                                                                                      | State    |
-| ----- | --------------------------------------------------------------------------------------------------------- | -------- |
-| 0     | Repo skeleton, build chain, NDK toolchain, CI smoke test                                                  | **Done** |
-| 1.0   | Apple lib runtime init, dlopen loader, vendored AOSP closure                                              | **Done** |
-| 1.1   | `POST /login`, `POST /login/2fa`, token harvest, `/me`, startup session restore (warm `WRAPPER_BASE_DIR`) | **Done** |
-| 1.2   | `GET /playback` (full MZ playback dispatch as native JSON)                                                | **Done** |
-| 1.3   | `POST /decrypt/sample` (FairPlay FPS sample decrypt, binary batch)                                        | **Done** |
-| 2     | Rate limit, dedupe, request queue                                                                         | Pending  |
-| 3     | arm64-v8a build, multi-arch Docker                                                                        | **Done** |
-
 ## HTTP API
 
 Most endpoints accept and return `application/json`. `POST /decrypt/sample`
 uses `application/octet-stream` for successful request and response bodies;
 errors still return JSON.
 
-| Method   | Path         | Description                                                                                                                                                                                                                                                                                                                                                                        |
-| -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/health`    | Liveness probe. `{status, phase, version, runtime}` — `runtime.playback_ready` is true when FairPlay decrypt is available.                                                                                                                                                                                                                                                         |
-| `GET`    | `/me`        | `{version, runtime, auth}` — same runtime flags as `/health`.                                                                                                                                                                                                                                                                                                                      |
-| `POST`   | `/login`     | Body: `{"username": "...", "password": "..."}` or `{"apple_id": "...", "password": "..."}` (synonyms). Drives Apple's `AuthenticateFlow`. Returns `200` + token snapshot, `202` if **2FA** is required (then `POST /login/2fa`), or `401` on failure.                                                                                                                              |
-| `POST`   | `/login/2fa` | Body: `{"code": "123456"}`. Continues a login waiting for HSA2.                                                                                                                                                                                                                                                                                                                    |
-| `GET`    | `/playback`  | Query string `?adam_id=<numeric store id>`. Returns `200` with a JSON object `{"songList":[...]}` containing the **whole MZ playback dispatch** Apple's `subDownload` URL bag returns (every flavor, key URI, asset URL, metadata field). CFData fields are base64; CFDate fields are ISO 8601. Needs an **authenticated** session; otherwise `401` / `503`. Apple errors → `502`. |
-| `POST`   | `/decrypt/sample` | Binary FairPlay sample decrypt batch. Request frame contains `adam_id`, SKD `uri`, and one or more encrypted samples. Response frame contains plaintext samples. Needs **authenticated** session and `playback_ready`; otherwise `401` / `503`. Apple errors → `502`.                                                                                                   |
-| `DELETE` | `/login`     | Aborts an in-flight login or clears cached tokens from memory. Apple's on-disk `mpl_db` cache is unchanged.                                                                                                                                                                                                                                                                        |
+| Method   | Path              | Description                                                                                                                                                                                                                                                                                                                                                                        |
+| -------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`         | Liveness probe. `{status, version, runtime}` — `runtime.playback_ready` is true when FairPlay decrypt is available.                                                                                                                                                                                                                                                                |
+| `GET`    | `/me`             | `{version, runtime, auth}` — same runtime flags as `/health`.                                                                                                                                                                                                                                                                                                                      |
+| `POST`   | `/login`          | Body: `{"username": "...", "password": "..."}` or `{"apple_id": "...", "password": "..."}` (synonyms). Drives Apple's `AuthenticateFlow`. Returns `200` + token snapshot, `202` if **2FA** is required (then `POST /login/2fa`), or `401` on failure.                                                                                                                              |
+| `POST`   | `/login/2fa`      | Body: `{"code": "123456"}`. Continues a login waiting for HSA2.                                                                                                                                                                                                                                                                                                                    |
+| `GET`    | `/playback`       | Query string `?adam_id=<numeric store id>`. Returns `200` with a JSON object `{"songList":[...]}` containing the **whole MZ playback dispatch** Apple's `subDownload` URL bag returns (every flavor, key URI, asset URL, metadata field). CFData fields are base64; CFDate fields are ISO 8601. Needs an **authenticated** session; otherwise `401` / `503`. Apple errors → `502`. |
+| `POST`   | `/decrypt/sample` | Binary FairPlay sample decrypt batch. Request frame contains `adam_id`, SKD `uri`, and one or more encrypted samples. Response frame contains plaintext samples. Needs **authenticated** session and `playback_ready`; otherwise `401` / `503`. Apple errors → `502`.                                                                                                              |
+| `DELETE` | `/login`          | Aborts an in-flight login or clears cached tokens from memory. Apple's on-disk `mpl_db` cache is unchanged.                                                                                                                                                                                                                                                                        |
 
 ### `POST /decrypt/sample` Binary Format
 
@@ -221,7 +208,7 @@ The daemon reads `WRAPPER_*` environment variables (forwarded via
 
 ### CI build
 
-The `.github/workflows/build.yml` workflow runs on **push** to `main` or `phase-1`,
+The `.github/workflows/build.yml` workflow runs on **push** to `main`,
 on **pull_request** (same-repo only for the full job), and **workflow_dispatch**.
 It uses the same host steps as above plus a Docker build and `/health` smoke test,
 with one repository secret:

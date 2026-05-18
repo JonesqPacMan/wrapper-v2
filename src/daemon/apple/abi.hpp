@@ -21,9 +21,8 @@
 // the APK is changed, re-derive with `nm -D --defined libstoreservicescore.so`
 // and update LIBS_VERSION.json.
 //
-// Phase 1.0 brought runtime init online (DNS, DeviceGUID, RequestContext,
-// FootHillConfig). Phase 1.1 adds AuthenticateFlow + URLRequest token harvest.
-// Phase 1.3 adds SVPlaybackLeaseManager + FairPlay sample decrypt symbols.
+// The declarations cover runtime init, auth/token harvest, playback dispatch,
+// and FairPlay sample decrypt symbols.
 
 #pragma once
 
@@ -88,7 +87,7 @@ struct std_vector {
 };
 
 // ---------------------------------------------------------------------------
-// Function pointer types for runtime-init symbols (Phase 1.0)
+// Function pointer types for runtime-init symbols
 // ---------------------------------------------------------------------------
 //
 // `using fn_X = void (*)(...);` rather than direct extern "C" decls.
@@ -136,7 +135,7 @@ using fn_RequestContext_init =
     void (*)(void* hidden_return, void* this_, shared_ptr* config);
 
 // ---------------------------------------------------------------------------
-// Phase 1.1 - AndroidPresentationInterface + callbacks
+// AndroidPresentationInterface + callbacks
 // ---------------------------------------------------------------------------
 //
 // AuthenticateFlow uses a "presentation interface" object to ask the
@@ -182,7 +181,7 @@ using fn_API_handleProtocolDialogResponse =
     void (*)(void* this_, const long* dialog_id, const shared_ptr* dialog_response);
 
 // ---------------------------------------------------------------------------
-// Phase 1.1 - ProtocolDialog / ProtocolDialogResponse (login UI)
+// ProtocolDialog / ProtocolDialogResponse (login UI)
 // ---------------------------------------------------------------------------
 
 using fn_ProtocolDialog_title    = std_string* (*)(void* this_);
@@ -199,7 +198,7 @@ using fn_RequestContext_setPresentationInterface =
     void (*)(void* this_, shared_ptr* presentation_interface);
 
 // ---------------------------------------------------------------------------
-// Phase 1.1 - CredentialsRequest / CredentialsResponse
+// CredentialsRequest / CredentialsResponse
 // ---------------------------------------------------------------------------
 //
 // CredentialsRequest is what gets passed *to* the credential handler
@@ -225,7 +224,7 @@ using fn_CredentialsResponse_set_string = void (*)(void* this_, std_string* s);
 using fn_CredentialsResponse_setResponseType = void (*)(void* this_, int response_type);
 
 // ---------------------------------------------------------------------------
-// Phase 1.1 - AuthenticateFlow / AuthenticateResponse
+// AuthenticateFlow / AuthenticateResponse
 // ---------------------------------------------------------------------------
 
 // std::shared_ptr<AuthenticateFlow>::make_shared<RequestContext&>(RequestContext&)
@@ -252,14 +251,14 @@ using fn_AR_customerMessage = std_string* (*)(void* this_);
 using fn_AR_error = shared_ptr* (*)(void* this_);
 
 // ---------------------------------------------------------------------------
-// Phase 1.1 - StoreErrorCondition
+// StoreErrorCondition
 // ---------------------------------------------------------------------------
 
 using fn_SEC_errorCode = int (*)(void* this_);
 using fn_SEC_what      = const char* (*)(void* this_);
 
 // ---------------------------------------------------------------------------
-// Phase 1.1 - DeviceGUID accessor + mediaplatform::Data
+// DeviceGUID accessor + mediaplatform::Data
 // ---------------------------------------------------------------------------
 
 // DeviceGUID::guid() - returns a (Data, ...) tuple via a hidden 16-byte
@@ -273,7 +272,7 @@ using fn_DeviceGUID_guid = void (*)(void* hidden_return /* [2]void* */,
 using fn_Data_bytes = const char* (*)(void* this_);
 
 // ---------------------------------------------------------------------------
-// Phase 1.1 - URLRequest / URLResponse / HTTPMessage
+// URLRequest / URLResponse / HTTPMessage
 // ---------------------------------------------------------------------------
 //
 // To call out to Apple's iTunes endpoints (apiToken, createMusicToken)
@@ -325,7 +324,7 @@ using fn_URLRequest_response = shared_ptr* (*)(void* this_);
 using fn_URLResponse_underlyingResponse = shared_ptr* (*)(void* this_);
 
 // ---------------------------------------------------------------------------
-// Phase 1.2 - PurchaseRequest + URLResponse::protocolDictionary
+// PurchaseRequest + URLResponse::protocolDictionary
 // (GET /playback "raw playback dispatch plist" path).
 // ---------------------------------------------------------------------------
 //
@@ -402,7 +401,7 @@ using fn_RequestContext_storeFrontIdentifier =
     void (*)(std_string* out, void* this_, shared_ptr* url_bag);
 
 // ---------------------------------------------------------------------------
-// Phase 1.3 - SVPlaybackLeaseManager + SVFootHillSessionCtrl (FairPlay decrypt)
+// SVPlaybackLeaseManager + SVFootHillSessionCtrl (FairPlay decrypt)
 // ---------------------------------------------------------------------------
 
 // SVPlaybackLeaseManager::SVPlaybackLeaseManager(
@@ -520,7 +519,7 @@ inline constexpr const char* RequestContext_init =
 inline constexpr const char* RequestContext_setFairPlayDirectoryPath =
     "_ZN17storeservicescore14RequestContext24setFairPlayDirectoryPathERKNSt6__ndk112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE";
 
-// ---- Phase 1.1: AndroidPresentationInterface + auth flow ----
+// ---- AndroidPresentationInterface + auth flow ----
 
 inline constexpr const char* make_shared_AndroidPresentationInterface =
     "_ZNSt6__ndk110shared_ptrIN20androidstoreservices28AndroidPresentationInterfaceEE11make_sharedIJEEES3_DpOT_";
@@ -591,7 +590,7 @@ inline constexpr const char* SEC_errorCode =
 inline constexpr const char* SEC_what =
     "_ZNK17storeservicescore19StoreErrorCondition4whatEv";
 
-// ---- Phase 1.1: token harvest ----
+// ---- token harvest ----
 
 inline constexpr const char* DeviceGUID_guid =
     "_ZN17storeservicescore10DeviceGUID4guidEv";
@@ -622,7 +621,7 @@ inline constexpr const char* URLRequest_response =
 inline constexpr const char* URLResponse_underlyingResponse =
     "_ZNK17storeservicescore11URLResponse18underlyingResponseEv";
 
-// ---- Phase 1.2: PurchaseRequest + URLResponse::protocolDictionary ----
+// ---- PurchaseRequest + URLResponse::protocolDictionary ----
 
 inline constexpr const char* PurchaseRequest_ctor =
     "_ZN17storeservicescore15PurchaseRequestC2ERKNSt6__ndk110shared_ptrINS_14RequestContextEEE";
@@ -651,7 +650,7 @@ inline constexpr const char* URLResponse_protocolDictionary =
 inline constexpr const char* RequestContext_storeFrontIdentifier =
     "_ZNK17storeservicescore14RequestContext20storeFrontIdentifierERKNSt6__ndk110shared_ptrINS_6URLBagEEE";
 
-// ---- Phase 1.3: FairPlay decrypt / lease ----
+// ---- FairPlay decrypt / lease ----
 
 inline constexpr const char* SVPlaybackLeaseManager_ctor =
     "_ZN22SVPlaybackLeaseManagerC2ERKNSt6__ndk18functionIFvRKiEEERKNS1_IFvRKNS0_10shared_ptrIN17storeservicescore19StoreErrorConditionEEEEEE";

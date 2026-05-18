@@ -24,7 +24,7 @@ using namespace std::chrono_literals;
 // Apple's flow normally completes well within a couple of seconds when
 // no 2FA is needed; the credentialHandler dispatch is what controls
 // when this returns.
-constexpr auto kLoginPhase1Timeout = 30s;
+constexpr auto kLoginTimeout = 30s;
 
 // How long POST /login/2fa is willing to block after submitting the
 // code. The flow has to make a network round-trip back to Apple.
@@ -258,7 +258,6 @@ void Server::mount() {
         }
         respond_json(res, 200, json{
             {"status",  "ok"},
-            {"phase",   1.3},
             {"version", info_.version},
             {"runtime", std::move(runtime)},
         });
@@ -289,7 +288,7 @@ void Server::mount() {
     //   401 if Apple rejected credentials (state=failed)
     //   409 if a login is already in progress
     //   503 if the runtime is not initialized
-    //   504 if the flow has not produced any state inside kLoginPhase1Timeout
+    //   504 if the flow has not produced any state inside kLoginTimeout
     svr_.Post("/login", [this](const httplib::Request& req, httplib::Response& res) {
         access_log("POST", req);
         if (!rt_.initialized()) {
@@ -367,7 +366,7 @@ void Server::mount() {
             return;
         }
 
-        auto state = account_.wait_for_settled_state(kLoginPhase1Timeout);
+        auto state = account_.wait_for_settled_state(kLoginTimeout);
         respond_json(res, http_status_for(state), snapshot_to_json(account_.public_snapshot()));
     });
 

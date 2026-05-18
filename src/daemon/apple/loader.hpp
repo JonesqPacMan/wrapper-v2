@@ -52,7 +52,7 @@ struct Symbols {
     abi::fn_RequestContext_init             RequestContext_init             = nullptr;
     abi::fn_RCC_set_string                  RequestContext_setFairPlayDirectoryPath = nullptr;
 
-    // ---- Phase 1.1: AndroidPresentationInterface + auth flow ----
+    // ---- AndroidPresentationInterface + auth flow ----
     abi::fn_make_shared_AndroidPresentationInterface make_shared_AndroidPresentationInterface = nullptr;
     abi::fn_API_setCredentialsHandler                API_setCredentialsHandler                = nullptr;
     abi::fn_API_setDialogHandler                     API_setDialogHandler                     = nullptr;
@@ -87,7 +87,7 @@ struct Symbols {
     abi::fn_SEC_errorCode SEC_errorCode = nullptr;
     abi::fn_SEC_what      SEC_what      = nullptr;
 
-    // ---- Phase 1.1: token harvest ----
+    // ---- token harvest ----
     abi::fn_DeviceGUID_guid DeviceGUID_guid = nullptr;
     abi::fn_Data_bytes      Data_bytes      = nullptr;
 
@@ -103,7 +103,7 @@ struct Symbols {
     abi::fn_URLRequest_response          URLRequest_response          = nullptr;
     abi::fn_URLResponse_underlyingResponse URLResponse_underlyingResponse = nullptr;
 
-    // ---- Phase 1.2: PurchaseRequest / protocolDictionary / CoreFoundation ----
+    // ---- PurchaseRequest / protocolDictionary / CoreFoundation ----
     abi::fn_PurchaseRequest_ctor                     PurchaseRequest_ctor                     = nullptr;
     abi::fn_PurchaseRequest_setProcessDialogActions  PurchaseRequest_setProcessDialogActions  = nullptr;
     abi::fn_PurchaseRequest_set_string               PurchaseRequest_setURLBagKey             = nullptr;
@@ -183,7 +183,7 @@ struct Symbols {
 
     abi::fn_RequestContext_storeFrontIdentifier RequestContext_storeFrontIdentifier = nullptr;
 
-    // ---- Phase 1.3: FairPlay decrypt ----
+    // ---- FairPlay decrypt ----
     abi::fn_SVPlaybackLeaseManager_ctor                      SVPlaybackLeaseManager_ctor                      = nullptr;
     abi::fn_SVPlaybackLeaseManager_refreshLeaseAutomatically SVPlaybackLeaseManager_refreshLeaseAutomatically = nullptr;
     abi::fn_SVPlaybackLeaseManager_requestLease              SVPlaybackLeaseManager_requestLease              = nullptr;

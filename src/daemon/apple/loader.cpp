@@ -14,7 +14,7 @@ namespace {
 // Mirrors WRAPPER_RUNTIME_TRACE in runtime.cpp: when set to any non-empty
 // non-"0" value, the loader prints a single stderr line before each dlopen /
 // dlsym group so a SIGSEGV inside DT_INIT_ARRAY (or a missing symbol) can be
-// localized to the exact library / phase. Stays off by default since the
+// localized to the exact library group. Stays off by default since the
 // per-call tracing is verbose.
 bool loader_trace_enabled() {
     static const bool v = []() {
@@ -255,7 +255,7 @@ bool Loader::open(const std::string& libs_dir) {
     RESOLVE(URLRequest_response,          URLRequest_response);
     RESOLVE(URLResponse_underlyingResponse, URLResponse_underlyingResponse);
 
-    // ---- Phase 1.2: PurchaseRequest + protocolDictionary ----
+    // ---- PurchaseRequest + protocolDictionary ----
     RESOLVE(PurchaseRequest_ctor,                    PurchaseRequest_ctor);
     RESOLVE(PurchaseRequest_setProcessDialogActions, PurchaseRequest_setProcessDialogActions);
     RESOLVE(PurchaseRequest_setURLBagKey,            PurchaseRequest_setURLBagKey);

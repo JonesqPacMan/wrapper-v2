@@ -1,7 +1,6 @@
-// Account / login state for wrapper-v2 (Phase 1.1).
+// Account / login state for wrapper-v2.
 //
-// Replaces the Phase 1.0 MUT-only storage with a real Apple-ID +
-// password sign-in flow driven through Apple's AuthenticateFlow. The
+// Apple-ID password sign-in flow driven through Apple's AuthenticateFlow. The
 // flow is callback-based (Apple calls our credentialHandler inline
 // from AuthenticateFlow::run()), so we run it on a dedicated worker
 // thread and coordinate with the HTTP layer through a state machine

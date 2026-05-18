@@ -77,7 +77,7 @@ target_link_options(main PRIVATE
 )
 
 # -----------------------------------------------------------------------------
-# Apple native libraries (Phase 1)
+# Apple native libraries
 # -----------------------------------------------------------------------------
 # Apple's libstoreservicescore / libmediaplatform / libandroidappmusic
 # are NOT in the daemon's DT_NEEDED chain. The Loader (apple/loader.cpp)

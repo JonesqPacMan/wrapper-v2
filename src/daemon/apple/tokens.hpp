@@ -1,4 +1,4 @@
-// Token-harvest helpers (Phase 1.1).
+// Token-harvest helpers.
 //
 // Post-login, Apple's `RequestContext` carries the iTunes-side auth
 // state (DSID + signed device blobs). We use that to:

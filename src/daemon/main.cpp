@@ -1,8 +1,7 @@
 // wrapper-v2 daemon entry point.
 //
-// Phase 1.1 brings real Apple-ID / password login. The daemon starts
-// in LoggedOut state, expects credentials via HTTP, and drives
-// Apple's AuthenticateFlow under the hood:
+// The daemon starts in LoggedOut state, expects credentials via HTTP,
+// and drives Apple's AuthenticateFlow under the hood:
 //
 //   GET    /health
 //   GET    /me
@@ -57,7 +56,7 @@ namespace {
 
 constexpr const char* kDefaultHost    = "0.0.0.0";
 constexpr int         kDefaultPort    = 80;
-constexpr const char* kVersion        = "0.1.0-phase1.1";
+constexpr const char* kVersion        = "0.0.1";
 
 std::atomic<httplib::Server*> g_server{nullptr};
 
