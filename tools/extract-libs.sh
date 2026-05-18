@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# extract-libs.sh - Extract Apple native libraries from a pinned APKMirror .apkm
-# bundle and verify against LIBS_VERSION.json.
+# extract-libs.sh - Extract Apple native libraries from an APKMirror .apkm bundle
+# or a standalone arch split .apk, and verify each .so against LIBS_VERSION.json.
 #
-# The .apkm file must match the SHA-256 in .apkm. Individual inner APK splits are
-# not pinned; extracted .so files are still verified against .libs.<arch>.
+# The bundle/APK file itself is not hashed; only extracted libraries are checked.
 #
 # Usage:
-#   extract-libs.sh --bundle <path-to-.apkm> [--arch <x86_64|arm64-v8a>] [--out <dir>]
+#   extract-libs.sh --bundle <path-to-.apkm|.apk> [--arch <x86_64|arm64-v8a>] [--out <dir>]
 #
 # Options:
 #   --arch <x86_64|arm64-v8a>    Which arch's libs to extract (default x86_64)
@@ -26,7 +25,7 @@ while [[ $# -gt 0 ]]; do
         --arch)   ARCH="$2";   shift 2 ;;
         --out)    OUT="$2";    shift 2 ;;
         -h|--help)
-            sed -n '2,13p' "$0"
+            sed -n '2,14p' "$0"
             exit 0
             ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -34,7 +33,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$BUNDLE" ]]; then
-    echo "extract-libs: missing --bundle <path-to-.apkm>" >&2
+    echo "extract-libs: missing --bundle <path-to-.apkm|.apk>" >&2
+    exit 2
+fi
+if [[ ! -f "$BUNDLE" ]]; then
+    echo "extract-libs: not a file: $BUNDLE" >&2
     exit 2
 fi
 if [[ -z "$OUT" ]]; then
@@ -52,33 +55,31 @@ for c in jq sha256sum unzip; do
     command -v "$c" >/dev/null || { echo "extract-libs: $c is required" >&2; exit 3; }
 done
 
-verify_sha() {
-    local file="$1"
-    local expected="$2"
-    local label="$3"
-    local actual
-    actual="$(sha256sum "$file" | awk '{print $1}')"
-    if [[ "$actual" != "$expected" ]]; then
-        echo "extract-libs: SHA-256 mismatch on $label" >&2
-        echo "  expected: $expected" >&2
-        echo "  actual:   $actual" >&2
-        return 1
-    fi
-}
-
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-EXPECT_BUNDLE="$(jq -r '.apkm // empty' "$LIBS_VERSION" | tr -d '\r')"
-[[ -n "$EXPECT_BUNDLE" ]] || { echo "extract-libs: no .apkm pin in LIBS_VERSION.json" >&2; exit 4; }
-verify_sha "$BUNDLE" "$EXPECT_BUNDLE" "$(basename "$BUNDLE") (apkm bundle)" || exit 5
+# Resolve the arch split APK: .apkm wraps split_config.*.apk; a bare .apk is used as-is.
+APK=""
+bundle_lower="${BUNDLE,,}"
+if [[ "$bundle_lower" == *.apkm ]]; then
+    unzip -qq "$BUNDLE" "$SPLIT_NAME" -d "$TMP"
+    APK="$TMP/$SPLIT_NAME"
+    [[ -f "$APK" ]] || {
+        echo "extract-libs: bundle missing $SPLIT_NAME (wrong .apkm or --arch?)" >&2
+        exit 6
+    }
+elif [[ "$bundle_lower" == *.apk ]]; then
+    APK="$BUNDLE"
+else
+    echo "extract-libs: expected .apkm or .apk extension: $BUNDLE" >&2
+    exit 2
+fi
 
-unzip -qq "$BUNDLE" "$SPLIT_NAME" -d "$TMP"
-APK="$TMP/$SPLIT_NAME"
-[[ -f "$APK" ]] || {
-    echo "extract-libs: bundle missing $SPLIT_NAME (wrong .apkm or arch?)" >&2
+# Sanity-check the APK contains libs for the requested arch.
+if ! unzip -l "$APK" "$APK_LIB_DIR/" 2>/dev/null | grep -q "$APK_LIB_DIR/"; then
+    echo "extract-libs: $APK has no $APK_LIB_DIR/ (wrong split or --arch?)" >&2
     exit 6
-}
+fi
 
 mkdir -p "$OUT"
 LIB_TMP="$TMP/libs"
@@ -90,6 +91,10 @@ unzip -qq "$APK" "$APK_LIB_DIR/*" -d "$LIB_TMP"
 mapfile -t EXPECTED_LIBS < <(
     jq -r --arg arch "$ARCH" '.libs[$arch] | keys[]' "$LIBS_VERSION" | tr -d '\r'
 )
+[[ ${#EXPECTED_LIBS[@]} -gt 0 ]] || {
+    echo "extract-libs: no libs pin for arch '$ARCH' in LIBS_VERSION.json" >&2
+    exit 4
+}
 
 ok=0
 fail=0

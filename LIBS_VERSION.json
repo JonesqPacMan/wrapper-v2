@@ -1,5 +1,5 @@
 {
-  "$comment": "Pinned APK bundle and native library hashes. CI fetches a .apkm from $APK_URL; its SHA-256 must match .apkm. Apple .so files are not committed; extract-libs.sh unpacks them from the bundle and verifies each against .libs.<arch>. AOSP paths match .android_system.",
+  "$comment": "Pinned native library hashes. Apple .so files are not committed; extract-libs.sh unpacks them from a .apkm or arch split .apk and verifies each against .libs.<arch>. The apkm field is optional metadata (not checked by extract-libs). AOSP paths match .android_system.",
   "apk": {
     "package": "com.apple.android.music",
     "version": "3.6.0-beta",
