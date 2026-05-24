@@ -5,7 +5,7 @@
 # LIBS_VERSION.json.
 #
 # Usage:
-#   tools/stage-system.sh [--arch <x86_64|arm64-v8a>] [--rootfs <path>]
+#   tools/stage-system.sh [--arch <x86_64|arm64-v8a>] [--rootfs <path>] [--ignore-hash]
 #
 # Defaults: --arch x86_64, --rootfs <repo>/rootfs
 set -euo pipefail
@@ -16,11 +16,13 @@ LIBS_VERSION="$REPO_ROOT/LIBS_VERSION.json"
 
 ARCH="x86_64"
 ROOTFS="$REPO_ROOT/rootfs"
+IGNORE_HASH=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --arch)   ARCH="$2";   shift 2 ;;
-        --rootfs) ROOTFS="$2"; shift 2 ;;
+        --arch)        ARCH="$2";   shift 2 ;;
+        --rootfs)      ROOTFS="$2"; shift 2 ;;
+        --ignore-hash) IGNORE_HASH=1; shift ;;
         -h|--help)
             sed -n '2,10p' "$0"
             exit 0
@@ -68,14 +70,16 @@ for rel in "${EXPECTED[@]}"; do
         fail=$((fail+1))
         continue
     fi
-    expect="$(jq -r --arg arch "$ARCH" --arg p "$rel" '.android_system[$arch][$p]' "$LIBS_VERSION" | tr -d '\r')"
-    actual="$(sha256_file "$src")"
-    if [[ "$expect" != "$actual" ]]; then
-        echo "stage-system: SHA-256 mismatch on $rel" >&2
-        echo "  expected: $expect" >&2
-        echo "  actual:   $actual" >&2
-        fail=$((fail+1))
-        continue
+    if [[ "$IGNORE_HASH" -eq 0 ]]; then
+        expect="$(jq -r --arg arch "$ARCH" --arg p "$rel" '.android_system[$arch][$p]' "$LIBS_VERSION" | tr -d '\r')"
+        actual="$(sha256_file "$src")"
+        if [[ "$expect" != "$actual" ]]; then
+            echo "stage-system: SHA-256 mismatch on $rel" >&2
+            echo "  expected: $expect" >&2
+            echo "  actual:   $actual" >&2
+            fail=$((fail+1))
+            continue
+        fi
     fi
     case "$rel" in
         bin/*)   mode=0755 ;;
@@ -88,5 +92,9 @@ for rel in "${EXPECTED[@]}"; do
     ok=$((ok+1))
 done
 
-echo "stage-system: $ok ok, $fail failed (arch=$ARCH rootfs=$ROOTFS)"
+if [[ "$IGNORE_HASH" -eq 1 ]]; then
+    echo "stage-system: $ok copied, $fail failed (arch=$ARCH rootfs=$ROOTFS hash=ignored)"
+else
+    echo "stage-system: $ok ok, $fail failed (arch=$ARCH rootfs=$ROOTFS)"
+fi
 [[ $fail -eq 0 ]]

@@ -5,11 +5,12 @@
 # The bundle/APK file itself is not hashed; only extracted libraries are checked.
 #
 # Usage:
-#   extract-libs.sh --bundle <path-to-.apkm|.apk> [--arch <x86_64|arm64-v8a>] [--out <dir>]
+#   extract-libs.sh --bundle <path-to-.apkm|.apk> [--arch <x86_64|arm64-v8a>] [--out <dir>] [--ignore-hash]
 #
 # Options:
 #   --arch <x86_64|arm64-v8a>    Which arch's libs to extract (default x86_64)
 #   --out  <directory>           Where to drop the .so files (default: <repo>/rootfs/system/lib64)
+#   --ignore-hash                Copy expected files without SHA-256 verification
 set -euo pipefail
 
 SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
@@ -20,14 +21,16 @@ BUNDLE=""
 ARCH="x86_64"
 OUT=""
 SENTINEL="libandroidappmusic.so"
+IGNORE_HASH=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --bundle) BUNDLE="$2"; shift 2 ;;
-        --arch)   ARCH="$2";   shift 2 ;;
-        --out)    OUT="$2";    shift 2 ;;
+        --bundle)      BUNDLE="$2"; shift 2 ;;
+        --arch)        ARCH="$2";   shift 2 ;;
+        --out)         OUT="$2";    shift 2 ;;
+        --ignore-hash) IGNORE_HASH=1; shift ;;
         -h|--help)
-            sed -n '2,12p' "$0"
+            sed -n '2,13p' "$0"
             exit 0
             ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -257,18 +260,24 @@ for so in "${EXPECTED_LIBS[@]}"; do
         fail=$((fail+1))
         continue
     fi
-    expect="$(jq -r --arg arch "$ARCH" --arg so "$so" '.libs[$arch][$so]' "$LIBS_VERSION" | tr -d '\r')"
-    actual="$(sha256_file "$src")"
-    if [[ "$expect" != "$actual" ]]; then
-        echo "extract-libs: SHA-256 mismatch on $so" >&2
-        echo "  expected: $expect" >&2
-        echo "  actual:   $actual" >&2
-        fail=$((fail+1))
-        continue
+    if [[ "$IGNORE_HASH" -eq 0 ]]; then
+        expect="$(jq -r --arg arch "$ARCH" --arg so "$so" '.libs[$arch][$so]' "$LIBS_VERSION" | tr -d '\r')"
+        actual="$(sha256_file "$src")"
+        if [[ "$expect" != "$actual" ]]; then
+            echo "extract-libs: SHA-256 mismatch on $so" >&2
+            echo "  expected: $expect" >&2
+            echo "  actual:   $actual" >&2
+            fail=$((fail+1))
+            continue
+        fi
     fi
     install -m 0644 "$src" "$OUT/$so"
     ok=$((ok+1))
 done
 
-echo "extract-libs: $ok ok, $fail failed (arch=$ARCH out=$OUT from $(basename "$APK") $APK_LIB_DIR)"
+if [[ "$IGNORE_HASH" -eq 1 ]]; then
+    echo "extract-libs: $ok copied, $fail failed (arch=$ARCH out=$OUT from $(basename "$APK") $APK_LIB_DIR hash=ignored)"
+else
+    echo "extract-libs: $ok ok, $fail failed (arch=$ARCH out=$OUT from $(basename "$APK") $APK_LIB_DIR)"
+fi
 [[ $fail -eq 0 ]]
