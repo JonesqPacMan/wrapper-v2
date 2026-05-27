@@ -34,7 +34,7 @@ jobs:
             docker_platform: linux/arm64
 
     env:
-      APK_URL: "https://eb5e7388c3df147b74dd2379b7cf8323.r2.cloudflarestorage.com/downloadprod/wp-content/uploads/2021/06/58/60c8131ede6b0/com.apple.android.music_3.6.0-beta-1108_2arch_2dpi_cbc6bdb14160a990d7e28168f5594187_apkmirror.com.apkm?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=72a5ba3a0b8a601e535d5525f12f8177%2F20260527%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260527T194113Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Signature=9dbeeeca5bea3196ef4e9b72049f679e53b6163686f7177aa2678d63a2430924"
+      APK_URL: "https://eb5e7388c3df147b74dd2379b7cf8323.r2.cloudflarestorage.com/downloadprod/wp-content/uploads/2021/06/58/60c8131ede6b0/com.apple.android.music_3.6.0-beta-1108_2arch_2dpi_cbc6bdb14160a990d7e28168f5594187_apkmirror.com.apkm?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=72a5ba3a0b8a601e535d5525f12f8177%2F20260527%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260527T201123Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Signature=a1d06fb8f5f7845a4ab7f9b91a9fba4adbd60fbc74124c406693d94a64aceef6"
     steps:
       - uses: actions/checkout@v4
 
