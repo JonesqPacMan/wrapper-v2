@@ -34,8 +34,7 @@ jobs:
             docker_platform: linux/arm64
 
     env:
-      APK_URL: https://www.apkmirror.com/wp-content/themes/APKMirror/download.php?id=13303161&key=1494c58c62f72d2b0806b73abbe5b66616fb495f
-
+      APK_URL: "https://eb5e7388c3df147b74dd2379b7cf8323.r2.cloudflarestorage.com/downloadprod/wp-content/uploads/2026/04/81/69d97bd39aaea/com.apple.android.music_5.2.1-1545_4arch_7dpi_4a7fae64719c0d599969911ac4c4e9be_apkmirror.com.apkm?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=72a5ba3a0b8a601e535d5525f12f8177%2F20260527%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260527T184603Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Signature=d8399e84dbab4fb5602f78f9f1614b7288a5a89bccfa6056e5c15cbc67353f88"
     steps:
       - uses: actions/checkout@v4
 
