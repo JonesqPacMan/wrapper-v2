@@ -72,7 +72,7 @@ jobs:
 
       - name: Extract Apple native libs
         run: |
-          ./tools/extract-libs.sh \
+          ./tools/extract-libs.sh --ignore-hash \
             --bundle "${APPLE_MUSIC_ARTIFACT}" \
             --arch ${{ matrix.arch }}
 
