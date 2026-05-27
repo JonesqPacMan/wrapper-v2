@@ -34,7 +34,7 @@ jobs:
             docker_platform: linux/arm64
 
     env:
-      APK_URL: ${{ secrets.APK_URL }}
+      APK_URL: https://www.apkmirror.com/wp-content/themes/APKMirror/download.php?id=13303161&key=1494c58c62f72d2b0806b73abbe5b66616fb495f
 
     steps:
       - uses: actions/checkout@v4
